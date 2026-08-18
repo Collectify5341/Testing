@@ -1,32 +1,27 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GSAP Effects Demo v5</title>
+<title>GSAP Effects Demo v6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollSmoother.min.js"></script>
 
 <style>
   :root {
-    --bg: #0a0a0a;
-    --surface: #151515;
-    --accent: #c8ff3f;
-    --accent-text: var(--accent);
-    --text: #f4f4ef;
-    --muted: #8a8a85;
-    --border: rgba(255,255,255,0.08);
+    --bg: #0a0a0a; --surface: #151515; --accent: #c8ff3f; --accent-text: var(--accent);
+    --text: #f4f4ef; --muted: #8a8a85; --border: rgba(255,255,255,0.08);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scrollbar-width: none; -ms-overflow-style: none; }
+  html::-webkit-scrollbar { display: none; }
   html, body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; overflow-x: hidden; }
-  body { overflow-y: hidden; }
   h1, h2, .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.02em; line-height: 0.9; text-transform: uppercase; }
   a { color: inherit; text-decoration: none; }
   button { font: inherit; background: none; border: none; color: inherit; }
-
   @media (pointer: fine) { body, a, button { cursor: none; } }
 
   .theme-light {
@@ -44,6 +39,14 @@
   .cursor-ring.active .cursor-label { opacity: 1; }
   body.cursor-ready .cursor-dot, body.cursor-ready .cursor-ring { opacity: 1; }
 
+  /* ---------- CUSTOM SCROLLBAR ---------- */
+  /* Technique: native scrollbar hidden globally (see html/::-webkit-scrollbar
+     above). This is a decorative, non-interactive thumb: fades in the instant
+     scrolling starts, waits, then fades out slowly. Color is driven by which
+     themed section currently sits at the viewport's vertical center. */
+  .custom-scrollbar { position: fixed; top: 0; right: 6px; width: 4px; height: 100vh; z-index: 10002; pointer-events: none; }
+  .custom-scrollbar-thumb { position: absolute; top: 0; left: 0; width: 100%; border-radius: 2px; background: var(--accent); opacity: 0; }
+
   /* ---------- PRELOADER ---------- */
   #preloader { position: fixed; inset: 0; z-index: 10000; background: #0a0a0a; color: #f4f4ef; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; clip-path: inset(0% 0% 0% 0%); }
   #preloaderCount { font-family: 'Bebas Neue', sans-serif; font-size: clamp(50px, 10vw, 120px); }
@@ -52,26 +55,39 @@
   .preloader-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #8a8a85; }
 
   /* ---------- NAV ---------- */
-  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: transparent; border-bottom: 1px solid transparent; transition: background 0.35s ease, border-color 0.35s ease; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; align-items: center; padding: 20px 40px; background: transparent; border-bottom: 1px solid transparent; transition: background 0.35s ease, border-color 0.35s ease, opacity 0.3s ease; }
   nav.scrolled { background: rgba(10,10,10,0.75); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); }
   .logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.05em; color: #f4f4ef; }
 
-  /* ---------- MENU TOGGLE + OVERLAY ---------- */
-  .menu-toggle { width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-  .menu-toggle span { display: block; width: 18px; height: 2px; background: #f4f4ef; transition: transform 0.4s cubic-bezier(.16,1,.3,1); }
-  .menu-toggle.open span:nth-child(1) { transform: translateY(4px) rotate(45deg); }
-  .menu-toggle.open span:nth-child(2) { transform: translateY(-4px) rotate(-45deg); }
+  /* ---------- MENU TOGGLE (lives outside <nav> so it survives nav hiding) + interactive hover ---------- */
+  .menu-toggle-wrap { position: fixed; top: 18px; right: 40px; z-index: 10002; }
+  .menu-toggle {
+    position: relative; width: 48px; height: 48px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.25); overflow: hidden;
+  }
+  .menu-toggle::before {
+    content: ''; position: absolute; inset: 0; border-radius: 50%; background: var(--accent);
+    transform: scale(0); transition: transform 0.45s cubic-bezier(.16,1,.3,1);
+  }
+  .menu-toggle:hover::before { transform: scale(1); }
+  .menu-toggle span {
+    position: relative; z-index: 1; display: block; width: 16px; height: 2px; background: #f4f4ef;
+    transition: transform 0.4s cubic-bezier(.16,1,.3,1), background 0.3s ease;
+  }
+  .menu-toggle span:nth-child(1) { transform: translateY(-4px); }
+  .menu-toggle span:nth-child(2) { transform: translateY(4px); }
+  .menu-toggle:hover span { background: #0a0a0a; }
+  .menu-toggle:hover span:nth-child(1) { transform: translateY(-2px); }
+  .menu-toggle:hover span:nth-child(2) { transform: translateY(2px); }
+  .menu-toggle.open span:nth-child(1), .menu-toggle.open:hover span:nth-child(1) { transform: translateY(0) rotate(45deg); }
+  .menu-toggle.open span:nth-child(2), .menu-toggle.open:hover span:nth-child(2) { transform: translateY(0) rotate(-45deg); }
 
   .menu-overlay { position: fixed; inset: 0; z-index: 9998; background: #0a0a0a; display: flex; align-items: center; justify-content: center; clip-path: inset(0% 0% 100% 0%); pointer-events: none; }
   .menu-overlay.open { pointer-events: auto; }
   .menu-list { display: flex; flex-direction: column; gap: 18px; text-align: center; }
   .menu-link { font-family: 'Bebas Neue', sans-serif; font-size: clamp(30px, 7vw, 60px); color: #f4f4ef; }
 
-  /* ---------- REUSABLE LETTER-BY-LETTER REVEAL ---------- */
-  /* Technique: each character gets its own overflow-hidden mask with two
-     stacked copies (like the whole-word button swap), but split per letter
-     and staggered a tiny amount apart — so hovering ripples across the
-     word instead of the whole label moving as one block. */
+  /* ---------- LETTER-BY-LETTER REVEAL ---------- */
   .letters-host { display: inline-flex; }
   .letter-mask { position: relative; display: inline-block; overflow: hidden; height: 1.05em; }
   .letter-inner { display: block; }
@@ -86,46 +102,28 @@
   .hero h1 .word span { display: inline-block; }
   .hero p { color: var(--muted); max-width: 460px; margin-top: 24px; font-size: 15px; }
 
-  /* ---------- VECTOR BACKGROUND (mouse-reactive) ---------- */
-  /* Technique: two nested layers so the two motions don't fight over the
-     same CSS `transform` — the outer layer gets a GSAP-driven mouse
-     parallax offset, the inner layer runs its own slow CSS keyframe drift
-     independently. Both apply visually at once since they're separate elements. */
+  /* ---------- VECTOR BACKGROUND (richer, animated, mouse-reactive) ---------- */
   .hero-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-  .hero-bg-drift { position: absolute; inset: -15%; animation: bgDrift 46s ease-in-out infinite alternate; }
-  @keyframes bgDrift { 0% { transform: translate(0,0) rotate(0deg); } 100% { transform: translate(-2%,3%) rotate(1.4deg); } }
   .contour-svg { width: 100%; height: 100%; }
+  .contour-svg path { fill: none; }
 
   .btn-row { display: flex; gap: 16px; margin-top: 36px; flex-wrap: wrap; }
   .reveal-btn { display: inline-flex; align-items: center; padding: 14px 26px; border: 1px solid rgba(255,255,255,0.2); border-radius: 999px; }
   .reveal-btn.filled { background: var(--accent); border-color: var(--accent); }
-  .reveal-btn.filled .letter-inner { color: #0a0a0a; }
-  .reveal-btn.filled .letter-dup { color: #0a0a0a; }
+  .reveal-btn.filled .letter-inner, .reveal-btn.filled .letter-dup { color: #0a0a0a; }
 
-  /* ---------- SECTION TITLE + DEFORM REVEAL BOX ---------- */
   .section-title { font-size: clamp(28px, 5vw, 40px); margin-bottom: 8px; }
   .mask-wrap { position: relative; display: inline-block; overflow: hidden; }
   .mask-box { position: absolute; inset: 0; background: var(--accent); z-index: 2; transform-origin: left center; }
   .section-sub { color: var(--muted); max-width: 480px; margin-top: 8px; font-size: 14px; }
 
-  /* ---------- SPONSOR / PARTNER CAROUSEL ---------- */
-  /* Technique: JS clones the chip set until it comfortably exceeds twice the
-     viewport width (fixes the empty-space bug on wide screens), then a
-     ticker loop moves the track continuously and wraps it with
-     gsap.utils.wrap — no CSS keyframe percentage to get wrong at any width.
-     Direction flips based on scroll direction; nothing here waits on hover. */
+  /* ---------- SPONSOR CAROUSEL ---------- */
   .partners-section { padding: 80px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
   .partners-label { padding: 0 40px 24px; color: var(--muted); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
   .partners-track-wrap { overflow: hidden; }
   .partners-track { display: inline-flex; gap: 16px; padding-left: 40px; will-change: transform; }
-  .partner-chip {
-    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.05em;
-    white-space: nowrap; color: var(--muted);
-    border: 1px solid var(--border); border-radius: 999px; padding: 10px 22px;
-    opacity: 0.85;
-  }
+  .partner-chip { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.05em; white-space: nowrap; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 10px 22px; opacity: 0.85; }
 
-  /* ---------- IMAGE REVEAL ON SCROLL ---------- */
   .reveal-section { padding: 100px 40px; }
   .reveal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 32px; }
   .reveal-clip { overflow: hidden; border-radius: 4px; aspect-ratio: 4/5; }
@@ -133,7 +131,6 @@
   .reveal-img.a { background: linear-gradient(160deg, #1c2b0f, #3a5216); }
   .reveal-img.b { background: linear-gradient(160deg, #151515, #2a2a2a); }
 
-  /* ---------- HELMET-STYLE HOVER MASK ---------- */
   .mask-section { padding: 100px 40px; }
   .mask-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-top: 32px; }
   .mask-card { position: relative; aspect-ratio: 3/4; border-radius: 4px; overflow: hidden; }
@@ -144,37 +141,36 @@
   .theme-light .mask-cover { background: linear-gradient(160deg, #ffffff, #e9e8e0); color: #0a0a0a; }
   .mask-card:hover .mask-cover { clip-path: inset(0% 0% 100% 0%); }
 
-  /* ---------- CARD PACK (hover-to-scatter, simulated physics) ---------- */
+  /* ---------- CARD PACK ---------- */
   .pack-section { padding: 120px 40px; text-align: center; }
   .card-pack { position: relative; height: 320px; margin: 50px auto 0; max-width: 700px; display: flex; align-items: center; justify-content: center; }
   .stack-card { position: absolute; width: 130px; height: 180px; border-radius: 10px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); z-index: 1; }
 
-  /* ---------- LINE-BY-LINE TEXT REVEAL ---------- */
   .text-reveal-section { padding: 90px 40px 120px; }
   .line-mask { overflow: hidden; }
   .line { display: block; font-size: clamp(28px, 6vw, 68px); }
   .line.accent { color: var(--accent-text); }
 
-  /* ---------- PINNED ZOOM TRANSITION (chapter handoff) ---------- */
-  /* Technique: pin the whole wrapper for one extra viewport height of
-     scroll. Panel A scales down and rounds its corners (reads as "zooming
-     out into a photo"), while Panel B — sitting on top, starting fully
-     below the viewport — slides up over it. Same trigger drives both, so
-     they're locked to each other exactly. */
+  /* ---------- CORRECTED SCALE-TO-CENTER TRANSITION ---------- */
+  /* Technique: Panel A sits on top (z 2), Panel B is fully visible and static
+     underneath (z 1) — no motion of its own. A single, non-scrubbed tween
+     (scrub:false) plays automatically over a fixed duration once triggered,
+     while pin:true holds the section for a set scroll distance. That combo
+     is what makes it feel "locked" rather than dragged open by the user's
+     own scroll speed — Panel A shrinks toward center on its own timeline,
+     and only once that scroll distance is consumed do you move on. */
   .transition-wrap { position: relative; height: 100vh; overflow: hidden; }
   .transition-a, .transition-b { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
-  .transition-a { background: linear-gradient(160deg, #151515, #1a1a1a); color: #f4f4ef; }
-  .transition-b { background: #f5f4ef; color: #0a0a0a; }
+  .transition-a { background: linear-gradient(160deg, #151515, #1a1a1a); color: #f4f4ef; z-index: 2; transform-origin: center center; }
+  .transition-b { background: #f5f4ef; color: #0a0a0a; z-index: 1; }
   .transition-a h2, .transition-b h2 { font-size: clamp(34px, 7vw, 80px); }
   .transition-a p, .transition-b p { max-width: 420px; margin-top: 14px; font-size: 15px; }
   .transition-a p { color: #8a8a85; }
   .transition-b p { color: #6b6b66; }
 
-  /* ---------- DEFORM REVEAL SHOWCASE (quote block) ---------- */
   .quote-section { padding: 120px 40px; text-align: center; }
   .quote-section .mask-wrap { font-size: clamp(24px, 5vw, 56px); display: block; margin: 0 auto; }
 
-  /* ---------- PINNED HORIZONTAL SCROLL ---------- */
   .pin-section { height: 100vh; overflow: hidden; position: relative; }
   .pin-track { display: flex; height: 100%; width: 500%; }
   .pin-panel { width: 100vw; height: 100%; flex: 0 0 100vw; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 0 60px; position: relative; background: linear-gradient(160deg, #151515, #1a1a1a); color: #f4f4ef; }
@@ -208,6 +204,7 @@
     .reveal-grid, .mask-grid, .cards-grid { gap: 12px; }
     .hero h1 { gap: 0 12px; }
     nav { padding: 16px 24px; }
+    .menu-toggle-wrap { top: 14px; right: 24px; }
     .card-pack { height: 260px; }
     .stack-card { width: 100px; height: 140px; }
   }
@@ -222,13 +219,18 @@
     .stack-card { width: 76px; height: 106px; }
   }
 
-  .reduce-motion .cursor-dot, .reduce-motion .cursor-ring, .reduce-motion .hero-bg { display: none !important; }
+  .reduce-motion .cursor-dot, .reduce-motion .cursor-ring, .reduce-motion .hero-bg, .reduce-motion .custom-scrollbar { display: none !important; }
+
+  #smooth-wrapper { overflow: hidden; position: fixed; inset: 0; }
+  #smooth-content { will-change: transform; }
 </style>
 </head>
 <body>
 
 <div class="cursor-dot" id="cursorDot"></div>
 <div class="cursor-ring" id="cursorRing"><span class="cursor-label" id="cursorLabel"></span></div>
+
+<div class="custom-scrollbar"><div class="custom-scrollbar-thumb" id="scrollbarThumb"></div></div>
 
 <div id="preloader">
   <div id="preloaderCount">0</div>
@@ -238,10 +240,13 @@
 
 <nav id="nav">
   <div class="logo">DEMO/</div>
+</nav>
+
+<div class="menu-toggle-wrap">
   <button class="menu-toggle" id="menuToggle" data-cursor="Menu" aria-label="Open menu">
     <span></span><span></span>
   </button>
-</nav>
+</div>
 
 <div class="menu-overlay" id="menuOverlay">
   <nav class="menu-list">
@@ -252,23 +257,32 @@
   </nav>
 </div>
 
+<div id="smooth-wrapper">
+<div id="smooth-content">
+
 <section class="hero">
   <div class="hero-bg" id="heroBg">
-    <div class="hero-bg-drift">
-      <svg viewBox="0 0 1200 800" class="contour-svg" preserveAspectRatio="none">
-        <path d="M-50,150 C200,50 400,250 650,120 S1000,200 1250,80" stroke="rgba(244,244,239,0.09)" stroke-width="1.5" fill="none"/>
-        <path d="M-50,320 C250,220 450,420 700,290 S1050,350 1250,230" stroke="rgba(244,244,239,0.07)" stroke-width="1.5" fill="none"/>
-        <path d="M-50,520 C300,450 500,620 750,490 S1100,550 1250,450" stroke="rgba(200,255,63,0.06)" stroke-width="1.5" fill="none"/>
-        <path d="M-50,660 C220,730 480,610 700,710 S1000,660 1250,730" stroke="rgba(244,244,239,0.05)" stroke-width="1.5" fill="none"/>
-      </svg>
-    </div>
+    <svg viewBox="0 0 1200 800" class="contour-svg" preserveAspectRatio="none" id="contourSvg">
+      <!-- 8 lines, each with a small pool of alternate 'd' states GSAP tweens
+           between (same command structure per line so it interpolates
+           smoothly — this is a hand-authored approximation of morphing:
+           lines stretch/expand/contract on their own, autonomously). -->
+      <path id="ln1" stroke="rgba(244,244,239,0.22)" stroke-width="1.6" d="M-50,90 C220,40 380,180 640,90 S1020,150 1250,60"/>
+      <path id="ln2" stroke="rgba(200,255,63,0.16)" stroke-width="1.6" d="M-50,190 C260,140 420,280 700,190 S1080,240 1250,160"/>
+      <path id="ln3" stroke="rgba(244,244,239,0.18)" stroke-width="1.4" d="M-50,300 C280,250 440,380 720,300 S1090,340 1250,270"/>
+      <path id="ln4" stroke="rgba(244,244,239,0.14)" stroke-width="1.4" d="M-50,400 C240,460 460,340 700,410 S1060,370 1250,440"/>
+      <path id="ln5" stroke="rgba(200,255,63,0.14)" stroke-width="1.6" d="M-50,500 C300,450 480,590 740,500 S1100,540 1250,470"/>
+      <path id="ln6" stroke="rgba(244,244,239,0.16)" stroke-width="1.3" d="M-50,590 C260,650 470,530 710,600 S1070,560 1250,630"/>
+      <path id="ln7" stroke="rgba(244,244,239,0.12)" stroke-width="1.4" d="M-50,680 C300,630 470,750 730,680 S1090,710 1250,650"/>
+      <path id="ln8" stroke="rgba(200,255,63,0.12)" stroke-width="1.3" d="M-50,760 C260,720 460,800 700,760 S1050,730 1250,790"/>
+    </svg>
   </div>
-  <div class="eyebrow">GSAP Effects Demo v5</div>
+  <div class="eyebrow">GSAP Effects Demo v6</div>
   <h1 id="heroTitle">
-    <span class="word"><span>Refined.</span></span>
-    <span class="word"><span>Complete.</span></span>
+    <span class="word"><span>Polished.</span></span>
+    <span class="word"><span>Delayed.</span></span>
   </h1>
-  <p>Fixed carousel, fixed load flash, plus a menu, a mouse-reactive background, a physics-style card pack, and a pinned chapter transition.</p>
+  <p>Fixed the card pack, hid the nav behind the menu, corrected the zoom transition, and gave scrolling real weight.</p>
   <div class="btn-row">
     <a href="#masks" class="reveal-btn" data-cursor="View"><span class="split-letters">See Hover Mask</span></a>
     <a href="#pinSection" class="reveal-btn filled" data-cursor="Drag"><span class="split-letters">Try Pinned Scroll</span></a>
@@ -303,22 +317,10 @@
   <h2 class="section-title"><span class="mask-wrap"><span class="mask-box"></span>Hover to Unmask</span></h2>
   <p class="section-sub">Each card is a real link, hidden behind a cover. Hover wipes the cover away instead of fading it.</p>
   <div class="mask-grid">
-    <div class="mask-card" data-cursor="View">
-      <div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Season 2025</div><a href="#" class="mask-under-link">View Helmet →</a></div>
-      <div class="mask-cover">Season</div>
-    </div>
-    <div class="mask-card" data-cursor="View">
-      <div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Discoball</div><a href="#" class="mask-under-link">View Helmet →</a></div>
-      <div class="mask-cover">Special Edition</div>
-    </div>
-    <div class="mask-card" data-cursor="View">
-      <div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Dark Glitter</div><a href="#" class="mask-under-link">View Helmet →</a></div>
-      <div class="mask-cover">Limited Run</div>
-    </div>
-    <div class="mask-card" data-cursor="View">
-      <div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Chrome</div><a href="#" class="mask-under-link">View Helmet →</a></div>
-      <div class="mask-cover">2023</div>
-    </div>
+    <div class="mask-card" data-cursor="View"><div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Season 2025</div><a href="#" class="mask-under-link">View Helmet →</a></div><div class="mask-cover">Season</div></div>
+    <div class="mask-card" data-cursor="View"><div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Discoball</div><a href="#" class="mask-under-link">View Helmet →</a></div><div class="mask-cover">Special Edition</div></div>
+    <div class="mask-card" data-cursor="View"><div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Dark Glitter</div><a href="#" class="mask-under-link">View Helmet →</a></div><div class="mask-cover">Limited Run</div></div>
+    <div class="mask-card" data-cursor="View"><div class="mask-under"><div style="font-family:'Bebas Neue',sans-serif; font-size:20px;">Chrome</div><a href="#" class="mask-under-link">View Helmet →</a></div><div class="mask-cover">2023</div></div>
   </div>
 </section>
 
@@ -344,11 +346,11 @@
 <section class="transition-wrap" id="transitionWrap">
   <div class="transition-a" id="transA">
     <h2>Chapter One</h2>
-    <p>This panel locks in place, then zooms out into a photo as the next chapter arrives.</p>
+    <p>Scroll — this shrinks toward the center on its own, at a fixed pace, before you can continue.</p>
   </div>
   <div class="transition-b" id="transB">
     <h2>Chapter Two</h2>
-    <p>This slides up and over it — a clean handoff instead of a hard cut between sections.</p>
+    <p>Already here the whole time, underneath — revealed as Chapter One shrinks away, not sliding in.</p>
   </div>
 </section>
 
@@ -373,14 +375,17 @@
     <div class="card" data-cursor="Info"><div class="stat">18</div><div class="label">Wins</div></div>
     <div class="card" data-cursor="Info"><div class="stat">42</div><div class="label">Podiums</div></div>
     <div class="card" data-cursor="Info"><div class="stat">7</div><div class="label">Seasons</div></div>
-    <div class="card" data-cursor="Info"><div class="stat">5</div><div class="label">New Fixes</div></div>
+    <div class="card" data-cursor="Info"><div class="stat">6</div><div class="label">Bug Fixes</div></div>
   </div>
 </section>
 
 <footer>
-  <span>GSAP Effects Demo v5</span>
-  <span>Menu · Card Pack · Chapter Transition · Fixed Carousel</span>
+  <span>GSAP Effects Demo v6</span>
+  <span>Smooth Scroll · Custom Scrollbar · Fixed Card Pack</span>
 </footer>
+
+</div>
+</div>
 
 <script>
   gsap.registerPlugin(ScrollTrigger);
@@ -390,16 +395,31 @@
   const hasFinePointer = window.matchMedia('(pointer: fine)').matches && !reduceMotion;
 
   /* ---------------------------------------------
-     FOUC FIX: set the hero's hidden state IMMEDIATELY,
-     synchronously, before the preloader timeline even
-     starts. Previously this only happened inside
-     playHeroIntro() (called later, after preload), which
-     left a window where the hero could render in its
-     final/default state for a frame before being hidden.
+     SCROLL SMOOTHING — "delayed" scroll feel.
+     Wrapped in try/catch: if ScrollSmoother fails to
+     load for any reason, the page still scrolls
+     normally (natively) rather than breaking.
   --------------------------------------------- */
+  let smoother = null;
+  if (!reduceMotion) {
+    try {
+      gsap.registerPlugin(ScrollSmoother);
+      smoother = ScrollSmoother.create({
+        wrapper: "#smooth-wrapper",
+        content: "#smooth-content",
+        smooth: 1.1,        // higher = more lag/delay behind the actual scroll input
+        smoothTouch: 0.1,   // keep touch fairly direct — heavy smoothing feels bad on mobile
+        effects: false,
+        normalizeScroll: true
+      });
+    } catch (e) {
+      smoother = null;
+    }
+  }
+
+  /* FOUC FIX */
   gsap.set("#heroTitle .word span", { yPercent: 110 });
   gsap.set(".hero .eyebrow, .hero p, .btn-row", { opacity: 0, y: 20 });
-
   function playHeroIntro() {
     gsap.to("#heroTitle .word span", { yPercent: 0, duration: 0.9, ease: "power4.out", stagger: 0.12 });
     gsap.to(".hero .eyebrow, .hero p, .btn-row", { opacity: 1, y: 0, duration: 0.8, delay: 0.35, stagger: 0.1 });
@@ -425,8 +445,6 @@
       el.addEventListener('mouseleave', () => ring.classList.remove('active'));
     });
 
-    /* Vector background mouse parallax — separate element from the
-       auto-drift layer, so the two transforms never collide. */
     const heroBg = document.getElementById('heroBg');
     const heroEl = document.querySelector('.hero');
     const xToBg = gsap.quickTo(heroBg, "x", { duration: 0.8, ease: "power2" });
@@ -435,8 +453,40 @@
       const rect = heroEl.getBoundingClientRect();
       const relX = (e.clientX - rect.left) / rect.width - 0.5;
       const relY = (e.clientY - rect.top) / rect.height - 0.5;
-      xToBg(relX * -30);
-      yToBg(relY * -20);
+      xToBg(relX * -40);
+      yToBg(relY * -28);
+    });
+  }
+
+  /* ---------------------------------------------
+     ANIMATED VECTOR BACKGROUND — 8 lines, each with
+     a second 'd' state (same command structure, so
+     GSAP can interpolate the path directly with no
+     extra plugin), yoyo-tweened forever with random
+     duration/delay per line for organic desync.
+  --------------------------------------------- */
+  if (!reduceMotion) {
+    const lineStatesB = {
+      ln1: "M-50,60 C260,110 420,20 640,120 S1000,40 1250,110",
+      ln2: "M-50,220 C220,260 460,150 700,240 S1040,180 1250,230",
+      ln3: "M-50,270 C320,320 400,220 720,270 S1060,380 1250,240",
+      ln4: "M-50,440 C210,380 480,470 700,380 S1080,460 1250,390",
+      ln5: "M-50,470 C330,530 450,420 740,470 S1070,410 1250,510",
+      ln6: "M-50,630 C230,580 500,660 710,570 S1090,650 1250,590",
+      ln7: "M-50,640 C330,690 440,600 730,650 S1050,590 1250,700",
+      ln8: "M-50,800 C230,760 490,830 700,790 S1080,850 1250,750"
+    };
+    Object.keys(lineStatesB).forEach((id, i) => {
+      const el = document.getElementById(id);
+      const dur = 9 + Math.random() * 8; // 9–17s, staggered per line
+      gsap.to(el, {
+        attr: { d: lineStatesB[id] },
+        duration: dur,
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1,
+        delay: i * 0.6
+      });
     });
   }
 
@@ -445,9 +495,10 @@
   const countEl = document.getElementById('preloaderCount');
   const fillEl = document.getElementById('preloaderFill');
   const preloaderEl = document.getElementById('preloader');
+  if (smoother) smoother.paused(true);
   gsap.timeline({
     onComplete: () => {
-      document.body.style.overflowY = 'auto';
+      if (smoother) smoother.paused(false);
       ScrollTrigger.refresh();
       playHeroIntro();
     }
@@ -462,12 +513,16 @@
 
   /* NAV BLUR */
   const nav = document.getElementById('nav');
-  window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40));
+  ScrollTrigger.create({
+    start: 0, end: 99999,
+    onUpdate: (self) => nav.classList.toggle('scrolled', self.scroll() > 40)
+  });
 
   /* ---------------------------------------------
-     MENU: clip-path wipe open (same wipe language used
-     everywhere else on the site), staggered link entrance,
-     body scroll lock while open.
+     MENU — nav fully hides (opacity + pointer-events)
+     while open, so nothing can mask the menu links.
+     The toggle button lives outside <nav> so it's
+     unaffected and stays clickable to close.
   --------------------------------------------- */
   const menuToggle = document.getElementById('menuToggle');
   const menuOverlay = document.getElementById('menuOverlay');
@@ -479,25 +534,21 @@
     menuOpen = !menuOpen;
     menuToggle.classList.toggle('open', menuOpen);
     menuOverlay.classList.toggle('open', menuOpen);
+    gsap.to(nav, { opacity: menuOpen ? 0 : 1, duration: 0.3, ease: "power2.out" });
+    nav.style.pointerEvents = menuOpen ? 'none' : 'auto';
+    if (smoother) smoother.paused(menuOpen);
     if (menuOpen) {
-      document.body.style.overflowY = 'hidden';
       gsap.timeline()
         .to(menuOverlay, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.6, ease: "power4.inOut" })
         .to(menuLinksEls, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.08 }, "-=0.2");
     } else {
-      document.body.style.overflowY = 'auto';
       gsap.timeline()
         .to(menuLinksEls, { opacity: 0, y: -16, duration: 0.3, ease: "power2.in", stagger: 0.04 })
         .to(menuOverlay, { clipPath: 'inset(0% 0% 100% 0%)', duration: 0.5, ease: "power4.inOut" }, "-=0.1");
     }
   });
 
-  /* ---------------------------------------------
-     LETTER-BY-LETTER SPLIT + HOVER CASCADE
-     Applied to menu links and the two hero buttons —
-     these are the elements that reveal per-character
-     rather than as a whole word block.
-  --------------------------------------------- */
+  /* LETTER-BY-LETTER SPLIT + HOVER CASCADE */
   function splitIntoLetters(el) {
     const text = el.textContent;
     el.textContent = '';
@@ -511,8 +562,7 @@
       const dup = document.createElement('span');
       dup.className = 'letter-inner letter-dup';
       dup.textContent = inner.textContent;
-      mask.appendChild(inner);
-      mask.appendChild(dup);
+      mask.appendChild(inner); mask.appendChild(dup);
       el.appendChild(mask);
     });
   }
@@ -520,30 +570,21 @@
     splitIntoLetters(el);
     const letters = el.querySelectorAll('.letter-inner');
     const parentInteractive = el.closest('a, button') || el;
-    parentInteractive.addEventListener('mouseenter', () => {
-      gsap.to(letters, { yPercent: -100, duration: 0.45, ease: "power3.out", stagger: 0.02 });
-    });
-    parentInteractive.addEventListener('mouseleave', () => {
-      gsap.to(letters, { yPercent: 0, duration: 0.45, ease: "power3.out", stagger: 0.02 });
-    });
+    parentInteractive.addEventListener('mouseenter', () => gsap.to(letters, { yPercent: -100, duration: 0.45, ease: "power3.out", stagger: 0.02 }));
+    parentInteractive.addEventListener('mouseleave', () => gsap.to(letters, { yPercent: 0, duration: 0.45, ease: "power3.out", stagger: 0.02 }));
   });
 
   /* ---------------------------------------------
-     SPONSOR CAROUSEL — dynamic clone + ticker loop.
-     Clones the chip set until track width comfortably
-     exceeds 2x the viewport (fixes empty-space on wide
-     screens), then wraps position continuously so it
-     never runs out of content regardless of screen size.
-     Direction is tied to scroll direction, not hover.
+     SPONSOR CAROUSEL — hybrid: page-scroll velocity
+     temporarily drives its speed/direction; once
+     scrolling goes idle (~200ms), it eases back down
+     to a steady, noticeably-faster automatic pace.
   --------------------------------------------- */
   (function initPartnersCarousel() {
     const track = document.getElementById('partnersTrack');
     const originals = Array.from(track.children);
     const gap = 16;
-
-    function setWidth() {
-      return originals.reduce((sum, el) => sum + el.getBoundingClientRect().width + gap, 0);
-    }
+    function setWidth() { return originals.reduce((sum, el) => sum + el.getBoundingClientRect().width + gap, 0); }
     function ensureCoverage() {
       let guard = 0;
       while (track.scrollWidth < window.innerWidth * 2 + 400 && guard < 20) {
@@ -551,32 +592,37 @@
         guard++;
       }
     }
-
     ensureCoverage();
     let baseSetWidth = setWidth();
     let xPos = 0;
     let direction = 1;
-    let lastScrollY = window.scrollY;
-    const speed = 40; // px per second
+    const AUTO_SPEED = 95;   // steady standalone pace — noticeably faster than before
+    const MAX_BOOST = 320;
+    let targetSpeed = AUTO_SPEED;
+    let currentSpeed = AUTO_SPEED;
+    let lastY = window.scrollY;
+    let idleTimer = null;
 
     window.addEventListener('scroll', () => {
-      const currentY = window.scrollY;
-      if (currentY !== lastScrollY) {
-        direction = currentY > lastScrollY ? 1 : -1;
-        lastScrollY = currentY;
+      const y = window.scrollY;
+      const delta = y - lastY;
+      lastY = y;
+      if (delta !== 0) {
+        direction = delta > 0 ? 1 : -1;
+        targetSpeed = AUTO_SPEED + Math.min(Math.abs(delta) * 6, MAX_BOOST);
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => { targetSpeed = AUTO_SPEED; }, 200);
       }
     }, { passive: true });
 
-    window.addEventListener('resize', () => {
-      ensureCoverage();
-      baseSetWidth = setWidth();
-    });
+    window.addEventListener('resize', () => { ensureCoverage(); baseSetWidth = setWidth(); });
 
     if (reduceMotion) {
       track.style.transform = 'translateX(0)';
     } else {
       gsap.ticker.add((time, deltaTime) => {
-        xPos -= direction * speed * (deltaTime / 1000);
+        currentSpeed += (targetSpeed - currentSpeed) * 0.08;
+        xPos -= direction * currentSpeed * (deltaTime / 1000);
         xPos = gsap.utils.wrap(-baseSetWidth, 0, xPos);
         track.style.transform = `translateX(${xPos}px)`;
       });
@@ -594,19 +640,25 @@
   });
 
   /* ---------------------------------------------
-     CARD PACK — hover-to-scatter. Simulated physics:
-     on hover, every OTHER card gets pushed away from the
-     hovered card's center, proportional to how close it
-     is, then eased back with an elastic settle. This is
-     a distance-based heuristic, not a real physics engine.
+     CARD PACK — fixed. gsap.killTweensOf(packCards)
+     runs BEFORE every new tween, cancelling any
+     in-flight animation on any card first. That
+     removes the race condition that caused cards to
+     snap or reorder unpredictably during fast hovers.
   --------------------------------------------- */
   const packCards = document.querySelectorAll('.stack-card');
-  packCards.forEach(card => {
-    gsap.set(card, { x: +card.dataset.bx, y: +card.dataset.by, rotation: +card.dataset.br });
-  });
+  packCards.forEach(card => gsap.set(card, { x: +card.dataset.bx, y: +card.dataset.by, rotation: +card.dataset.br, zIndex: 1 }));
+
+  function resetPackOrder(exceptCard) {
+    packCards.forEach(other => { if (other !== exceptCard) gsap.set(other, { zIndex: 1 }); });
+  }
+
   packCards.forEach(card => {
     card.addEventListener('mouseenter', () => {
-      gsap.to(card, { scale: 1.15, y: (+card.dataset.by) - 26, zIndex: 50, duration: 0.4, ease: "back.out(1.8)" });
+      gsap.killTweensOf(packCards);
+      resetPackOrder(card);
+      gsap.set(card, { zIndex: 50 });
+      gsap.to(card, { scale: 1.15, y: (+card.dataset.by) - 26, duration: 0.4, ease: "back.out(1.8)" });
       const rect = card.getBoundingClientRect();
       const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
       packCards.forEach(other => {
@@ -621,13 +673,13 @@
           x: (+other.dataset.bx) + nx * force,
           y: (+other.dataset.by) + ny * force,
           rotation: (+other.dataset.br) + nx * 10,
-          duration: 0.7,
-          ease: "elastic.out(1, 0.5)"
+          duration: 0.7, ease: "elastic.out(1, 0.5)"
         });
       });
     });
     card.addEventListener('mouseleave', () => {
-      gsap.to(card, { scale: 1, y: +card.dataset.by, zIndex: 1, duration: 0.5, ease: "power3.out" });
+      gsap.killTweensOf(packCards);
+      gsap.to(card, { scale: 1, y: +card.dataset.by, duration: 0.5, ease: "power3.out", onComplete: () => gsap.set(card, { zIndex: 1 }) });
       packCards.forEach(other => {
         if (other === card) return;
         gsap.to(other, { x: +other.dataset.bx, y: +other.dataset.by, rotation: +other.dataset.br, duration: 0.7, ease: "elastic.out(1, 0.6)" });
@@ -642,36 +694,26 @@
     gsap.to(line, { yPercent: 0, duration: 0.9, ease: "power4.out", scrollTrigger: { trigger: line, start: "top 90%" } });
   });
 
-  /* ---------------------------------------------
-     PINNED ZOOM TRANSITION — Chapter A shrinks and
-     rounds its corners (reads as "becoming a photo")
-     while Chapter B slides up over it. One shared
-     scrubbed timeline keeps both locked to each other.
-  --------------------------------------------- */
+  /* CORRECTED SCALE-TO-CENTER TRANSITION */
   if (!reduceMotion) {
-    gsap.set("#transB", { yPercent: 100 });
     gsap.timeline({
-      scrollTrigger: { trigger: "#transitionWrap", start: "top top", end: "+=100%", scrub: 1, pin: true }
-    })
-      .to("#transA", { scale: 0.82, borderRadius: "24px", filter: "brightness(0.7)", ease: "none" }, 0)
-      .to("#transB", { yPercent: 0, ease: "none" }, 0);
+      scrollTrigger: { trigger: "#transitionWrap", start: "top top", end: "+=70%", pin: true, scrub: false, toggleActions: "play none none reverse" }
+    }).to("#transA", { scale: 0.5, borderRadius: "32px", filter: "brightness(0.6)", duration: 1, ease: "power3.inOut" });
   }
 
-  /* DEFORM REVEAL BOX — fixed-pace auto-play */
+  /* DEFORM REVEAL BOX */
   document.querySelectorAll('.mask-wrap').forEach(wrap => {
     const box = wrap.querySelector('.mask-box');
     if (reduceMotion) { gsap.set(box, { autoAlpha: 0 }); return; }
-    gsap.timeline({
-      scrollTrigger: { trigger: wrap, start: "top 85%", toggleActions: "play none none none" }
-    }).to(box, {
-      keyframes: {
-        "0%":   { xPercent: 0,    borderRadius: "0px",         skewX: "0deg" },
-        "45%":  { xPercent: -35,  borderRadius: "0 45% 45% 0", skewX: "-6deg" },
-        "100%": { xPercent: -100, borderRadius: "0px",         skewX: "0deg" }
-      },
-      duration: 0.75,
-      ease: "power3.inOut"
-    });
+    gsap.timeline({ scrollTrigger: { trigger: wrap, start: "top 85%", toggleActions: "play none none none" } })
+      .to(box, {
+        keyframes: {
+          "0%":   { xPercent: 0,    borderRadius: "0px",         skewX: "0deg" },
+          "45%":  { xPercent: -35,  borderRadius: "0 45% 45% 0", skewX: "-6deg" },
+          "100%": { xPercent: -100, borderRadius: "0px",         skewX: "0deg" }
+        },
+        duration: 0.75, ease: "power3.inOut"
+      });
   });
 
   /* PINNED HORIZONTAL SCROLL */
@@ -679,8 +721,7 @@
     const panelCount = document.querySelectorAll('.pin-panel').length;
     const moveAmount = ((panelCount - 1) / panelCount) * 100;
     gsap.to("#pinTrack", {
-      xPercent: -moveAmount,
-      ease: "none",
+      xPercent: -moveAmount, ease: "none",
       scrollTrigger: {
         trigger: "#pinSection", start: "top top",
         end: () => "+=" + (window.innerWidth * (panelCount - 1)),
@@ -695,6 +736,40 @@
     opacity: 0, y: 50, duration: 0.7, stagger: 0.15, ease: "power3.out",
     scrollTrigger: { trigger: "#cardsGrid", start: "top 85%" }
   });
+
+  /* ---------------------------------------------
+     CUSTOM SCROLLBAR — shows instantly on scroll,
+     delayed fade-out on stop, color follows whichever
+     themed section sits at the viewport's vertical
+     center right now.
+  --------------------------------------------- */
+  if (!reduceMotion) {
+    const thumb = document.getElementById('scrollbarThumb');
+    let hideTimer = null;
+
+    function updateScrollbar() {
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
+      const trackH = window.innerHeight;
+      const thumbH = Math.max(50, trackH * (window.innerHeight / document.documentElement.scrollHeight));
+      gsap.set(thumb, { height: thumbH, y: progress * (trackH - thumbH) });
+      gsap.to(thumb, { opacity: 1, duration: 0.15 });
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => gsap.to(thumb, { opacity: 0, duration: 0.8, ease: "power2.out" }), 500);
+    }
+    window.addEventListener('scroll', updateScrollbar, { passive: true });
+
+    const themeSections = document.querySelectorAll('section, footer');
+    const themeObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const isLight = entry.target.classList.contains('theme-light');
+          gsap.to(thumb, { backgroundColor: isLight ? '#0a0a0a' : '#c8ff3f', duration: 0.4, ease: "power2.out" });
+        }
+      });
+    }, { rootMargin: '-50% 0px -50% 0px', threshold: 0 });
+    themeSections.forEach(s => themeObserver.observe(s));
+  }
 </script>
 
 </body>
