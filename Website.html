@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GSAP Effects Demo v4 — Responsive, Themed, Auto-Timed Reveal</title>
+<title>GSAP Effects Demo v5</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js"></script>
@@ -13,8 +14,8 @@
   :root {
     --bg: #0a0a0a;
     --surface: #151515;
-    --accent: #c8ff3f;       /* constant bright fill — boxes, filled buttons, cursor */
-    --accent-text: var(--accent); /* adaptive — used when accent is TEXT/border, overridden per theme */
+    --accent: #c8ff3f;
+    --accent-text: var(--accent);
     --text: #f4f4ef;
     --muted: #8a8a85;
     --border: rgba(255,255,255,0.08);
@@ -24,23 +25,14 @@
   body { overflow-y: hidden; }
   h1, h2, .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: 0.02em; line-height: 0.9; text-transform: uppercase; }
   a { color: inherit; text-decoration: none; }
+  button { font: inherit; background: none; border: none; color: inherit; }
 
   @media (pointer: fine) { body, a, button { cursor: none; } }
 
-  /* ---------- LIGHT THEME SCOPE ---------- */
-  /* Technique: redefine the same custom-property names inside .theme-light.
-     Every rule below reads var(--bg)/var(--text)/etc, so wrapping a whole
-     <section> in this class re-themes everything inside it automatically —
-     no component needs its own light/dark variant written out. */
   .theme-light {
-    --bg: #f5f4ef;
-    --surface: #ffffff;
-    --text: #0a0a0a;
-    --muted: #6b6b66;
-    --accent-text: #5c7a1a; /* darker olive so accent-as-text stays AA-readable on white */
-    --border: rgba(10,10,10,0.1);
-    background: var(--bg);
-    color: var(--text);
+    --bg: #f5f4ef; --surface: #ffffff; --text: #0a0a0a; --muted: #6b6b66;
+    --accent-text: #5c7a1a; --border: rgba(10,10,10,0.1);
+    background: var(--bg); color: var(--text);
   }
 
   /* ---------- CUSTOM CURSOR ---------- */
@@ -60,56 +52,78 @@
   .preloader-label { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #8a8a85; }
 
   /* ---------- NAV ---------- */
-  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: transparent; border-bottom: 1px solid transparent; transition: background 0.35s ease, border-color 0.35s ease; }
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; justify-content: space-between; align-items: center; padding: 20px 40px; background: transparent; border-bottom: 1px solid transparent; transition: background 0.35s ease, border-color 0.35s ease; }
   nav.scrolled { background: rgba(10,10,10,0.75); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.08); }
   .logo { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 0.05em; color: #f4f4ef; }
-  .nav-links { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: #8a8a85; }
+
+  /* ---------- MENU TOGGLE + OVERLAY ---------- */
+  .menu-toggle { width: 44px; height: 44px; border: 1px solid rgba(255,255,255,0.25); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+  .menu-toggle span { display: block; width: 18px; height: 2px; background: #f4f4ef; transition: transform 0.4s cubic-bezier(.16,1,.3,1); }
+  .menu-toggle.open span:nth-child(1) { transform: translateY(4px) rotate(45deg); }
+  .menu-toggle.open span:nth-child(2) { transform: translateY(-4px) rotate(-45deg); }
+
+  .menu-overlay { position: fixed; inset: 0; z-index: 9998; background: #0a0a0a; display: flex; align-items: center; justify-content: center; clip-path: inset(0% 0% 100% 0%); pointer-events: none; }
+  .menu-overlay.open { pointer-events: auto; }
+  .menu-list { display: flex; flex-direction: column; gap: 18px; text-align: center; }
+  .menu-link { font-family: 'Bebas Neue', sans-serif; font-size: clamp(30px, 7vw, 60px); color: #f4f4ef; }
+
+  /* ---------- REUSABLE LETTER-BY-LETTER REVEAL ---------- */
+  /* Technique: each character gets its own overflow-hidden mask with two
+     stacked copies (like the whole-word button swap), but split per letter
+     and staggered a tiny amount apart — so hovering ripples across the
+     word instead of the whole label moving as one block. */
+  .letters-host { display: inline-flex; }
+  .letter-mask { position: relative; display: inline-block; overflow: hidden; height: 1.05em; }
+  .letter-inner { display: block; }
+  .letter-inner.letter-dup { position: absolute; top: 100%; left: 0; color: var(--accent); }
 
   /* ---------- HERO ---------- */
-  .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 0 40px; }
+  .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 0 40px; position: relative; overflow: hidden; }
+  .hero > * { position: relative; z-index: 1; }
   .hero .eyebrow { color: var(--accent-text); font-size: 12px; letter-spacing: 0.25em; text-transform: uppercase; margin-bottom: 18px; }
   .hero h1 { font-size: clamp(44px, 11vw, 140px); display: flex; flex-wrap: wrap; gap: 0 20px; }
   .hero h1 .word { overflow: hidden; display: inline-block; }
   .hero h1 .word span { display: inline-block; }
   .hero p { color: var(--muted); max-width: 460px; margin-top: 24px; font-size: 15px; }
 
+  /* ---------- VECTOR BACKGROUND (mouse-reactive) ---------- */
+  /* Technique: two nested layers so the two motions don't fight over the
+     same CSS `transform` — the outer layer gets a GSAP-driven mouse
+     parallax offset, the inner layer runs its own slow CSS keyframe drift
+     independently. Both apply visually at once since they're separate elements. */
+  .hero-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .hero-bg-drift { position: absolute; inset: -15%; animation: bgDrift 46s ease-in-out infinite alternate; }
+  @keyframes bgDrift { 0% { transform: translate(0,0) rotate(0deg); } 100% { transform: translate(-2%,3%) rotate(1.4deg); } }
+  .contour-svg { width: 100%; height: 100%; }
+
   .btn-row { display: flex; gap: 16px; margin-top: 36px; flex-wrap: wrap; }
   .reveal-btn { display: inline-flex; align-items: center; padding: 14px 26px; border: 1px solid rgba(255,255,255,0.2); border-radius: 999px; }
-  .btn-text-wrap { position: relative; height: 1.1em; overflow: hidden; display: block; }
-  .btn-text { display: block; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; transition: transform 0.45s cubic-bezier(.16,1,.3,1); }
-  .btn-text-dup { position: absolute; top: 100%; left: 0; color: var(--accent-text); }
-  .reveal-btn:hover .btn-text { transform: translateY(-100%); }
   .reveal-btn.filled { background: var(--accent); border-color: var(--accent); }
-  .reveal-btn.filled .btn-text, .reveal-btn.filled .btn-text-dup { color: #0a0a0a; }
+  .reveal-btn.filled .letter-inner { color: #0a0a0a; }
+  .reveal-btn.filled .letter-dup { color: #0a0a0a; }
 
   /* ---------- SECTION TITLE + DEFORM REVEAL BOX ---------- */
-  /* Technique: single tween, fixed duration, no scrub — it fires once at a
-     consistent pace when the element crosses the trigger line, regardless
-     of how fast the person is scrolling. That's what makes it read as an
-     intentional "reveal moment" instead of something you drag open yourself. */
   .section-title { font-size: clamp(28px, 5vw, 40px); margin-bottom: 8px; }
   .mask-wrap { position: relative; display: inline-block; overflow: hidden; }
   .mask-box { position: absolute; inset: 0; background: var(--accent); z-index: 2; transform-origin: left center; }
-
   .section-sub { color: var(--muted); max-width: 480px; margin-top: 8px; font-size: 14px; }
 
   /* ---------- SPONSOR / PARTNER CAROUSEL ---------- */
-  /* Chips are styled as self-contained pills with a border, so they read as
-     "logo cards" even at rest — not reliant on a hover state that never
-     fires on touch devices (that reliance was why this looked unfinished). */
+  /* Technique: JS clones the chip set until it comfortably exceeds twice the
+     viewport width (fixes the empty-space bug on wide screens), then a
+     ticker loop moves the track continuously and wraps it with
+     gsap.utils.wrap — no CSS keyframe percentage to get wrong at any width.
+     Direction flips based on scroll direction; nothing here waits on hover. */
   .partners-section { padding: 80px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
   .partners-label { padding: 0 40px 24px; color: var(--muted); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
   .partners-track-wrap { overflow: hidden; }
-  .partners-track { display: inline-flex; gap: 16px; animation: partners-scroll 22s linear infinite; padding-left: 40px; }
-  .partners-track-wrap:hover .partners-track { animation-play-state: paused; }
+  .partners-track { display: inline-flex; gap: 16px; padding-left: 40px; will-change: transform; }
   .partner-chip {
     font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 0.05em;
     white-space: nowrap; color: var(--muted);
     border: 1px solid var(--border); border-radius: 999px; padding: 10px 22px;
-    opacity: 0.85; transition: opacity 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    opacity: 0.85;
   }
-  .partner-chip:hover { opacity: 1; color: var(--accent-text); border-color: var(--accent-text); }
-  @keyframes partners-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
   /* ---------- IMAGE REVEAL ON SCROLL ---------- */
   .reveal-section { padding: 100px 40px; }
@@ -130,11 +144,31 @@
   .theme-light .mask-cover { background: linear-gradient(160deg, #ffffff, #e9e8e0); color: #0a0a0a; }
   .mask-card:hover .mask-cover { clip-path: inset(0% 0% 100% 0%); }
 
+  /* ---------- CARD PACK (hover-to-scatter, simulated physics) ---------- */
+  .pack-section { padding: 120px 40px; text-align: center; }
+  .card-pack { position: relative; height: 320px; margin: 50px auto 0; max-width: 700px; display: flex; align-items: center; justify-content: center; }
+  .stack-card { position: absolute; width: 130px; height: 180px; border-radius: 10px; box-shadow: 0 20px 40px rgba(0,0,0,0.35); z-index: 1; }
+
   /* ---------- LINE-BY-LINE TEXT REVEAL ---------- */
   .text-reveal-section { padding: 90px 40px 120px; }
   .line-mask { overflow: hidden; }
   .line { display: block; font-size: clamp(28px, 6vw, 68px); }
   .line.accent { color: var(--accent-text); }
+
+  /* ---------- PINNED ZOOM TRANSITION (chapter handoff) ---------- */
+  /* Technique: pin the whole wrapper for one extra viewport height of
+     scroll. Panel A scales down and rounds its corners (reads as "zooming
+     out into a photo"), while Panel B — sitting on top, starting fully
+     below the viewport — slides up over it. Same trigger drives both, so
+     they're locked to each other exactly. */
+  .transition-wrap { position: relative; height: 100vh; overflow: hidden; }
+  .transition-a, .transition-b { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px; }
+  .transition-a { background: linear-gradient(160deg, #151515, #1a1a1a); color: #f4f4ef; }
+  .transition-b { background: #f5f4ef; color: #0a0a0a; }
+  .transition-a h2, .transition-b h2 { font-size: clamp(34px, 7vw, 80px); }
+  .transition-a p, .transition-b p { max-width: 420px; margin-top: 14px; font-size: 15px; }
+  .transition-a p { color: #8a8a85; }
+  .transition-b p { color: #6b6b66; }
 
   /* ---------- DEFORM REVEAL SHOWCASE (quote block) ---------- */
   .quote-section { padding: 120px 40px; text-align: center; }
@@ -151,10 +185,11 @@
   .pin-progress { position: absolute; bottom: 30px; left: 40px; right: 40px; height: 2px; background: rgba(255,255,255,0.1); }
   .pin-progress-bar { height: 100%; width: 0%; background: var(--accent); }
 
-  /* Reduced-motion fallback: stack panels instead of pinning/scrubbing */
   .reduce-motion .pin-section { height: auto; overflow: visible; }
   .reduce-motion .pin-track { flex-direction: column; width: 100%; }
   .reduce-motion .pin-panel { width: 100%; height: auto; padding: 60px 40px; }
+  .reduce-motion .transition-wrap { height: auto; }
+  .reduce-motion .transition-a, .reduce-motion .transition-b { position: relative; height: auto; padding: 60px 40px; }
 
   .cards-section { padding: 100px 40px; }
   .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-top: 32px; }
@@ -164,16 +199,17 @@
 
   footer { padding: 50px 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
-  /* ============ RESPONSIVE ============ */
   @media (max-width: 900px) {
-    .hero, .reveal-section, .mask-section, .cards-section, .text-reveal-section, .quote-section { padding-left: 24px; padding-right: 24px; }
-    .pin-panel { padding: 0 28px; }
+    .hero, .reveal-section, .mask-section, .cards-section, .text-reveal-section, .quote-section, .pack-section { padding-left: 24px; padding-right: 24px; }
+    .pin-panel, .transition-a, .transition-b { padding: 0 28px; }
     .partners-label { padding-left: 24px; }
-    .partners-track { gap: 12px; padding-left: 24px; }
+    .partners-track { padding-left: 24px; }
     .partner-chip { font-size: 16px; padding: 8px 16px; }
     .reveal-grid, .mask-grid, .cards-grid { gap: 12px; }
     .hero h1 { gap: 0 12px; }
     nav { padding: 16px 24px; }
+    .card-pack { height: 260px; }
+    .stack-card { width: 100px; height: 140px; }
   }
   @media (max-width: 520px) {
     .hero h1 { font-size: clamp(32px, 13vw, 70px); gap: 0 8px; }
@@ -182,12 +218,11 @@
     .quote-section { padding: 90px 20px; }
     .pin-panel h2 { font-size: clamp(30px, 11vw, 60px); }
     footer { flex-direction: column; }
+    .card-pack { height: 200px; }
+    .stack-card { width: 76px; height: 106px; }
   }
 
-  /* Respect reduced-motion preference: heavy scroll-jacking and cursor
-     tracking aren't essential to the content, so they're the first things
-     switched off for people who've asked their OS to minimize motion. */
-  .reduce-motion .cursor-dot, .reduce-motion .cursor-ring { display: none !important; }
+  .reduce-motion .cursor-dot, .reduce-motion .cursor-ring, .reduce-motion .hero-bg { display: none !important; }
 </style>
 </head>
 <body>
@@ -203,38 +238,47 @@
 
 <nav id="nav">
   <div class="logo">DEMO/</div>
-  <div class="nav-links">Scroll to explore ↓</div>
+  <button class="menu-toggle" id="menuToggle" data-cursor="Menu" aria-label="Open menu">
+    <span></span><span></span>
+  </button>
 </nav>
 
+<div class="menu-overlay" id="menuOverlay">
+  <nav class="menu-list">
+    <a href="#" class="menu-link split-letters" data-cursor="Go">Home</a>
+    <a href="#" class="menu-link split-letters" data-cursor="Go">Store</a>
+    <a href="#" class="menu-link split-letters" data-cursor="Go">Partners</a>
+    <a href="#" class="menu-link split-letters" data-cursor="Go">Contact</a>
+  </nav>
+</div>
+
 <section class="hero">
-  <div class="eyebrow">GSAP Effects Demo v4</div>
+  <div class="hero-bg" id="heroBg">
+    <div class="hero-bg-drift">
+      <svg viewBox="0 0 1200 800" class="contour-svg" preserveAspectRatio="none">
+        <path d="M-50,150 C200,50 400,250 650,120 S1000,200 1250,80" stroke="rgba(244,244,239,0.09)" stroke-width="1.5" fill="none"/>
+        <path d="M-50,320 C250,220 450,420 700,290 S1050,350 1250,230" stroke="rgba(244,244,239,0.07)" stroke-width="1.5" fill="none"/>
+        <path d="M-50,520 C300,450 500,620 750,490 S1100,550 1250,450" stroke="rgba(200,255,63,0.06)" stroke-width="1.5" fill="none"/>
+        <path d="M-50,660 C220,730 480,610 700,710 S1000,660 1250,730" stroke="rgba(244,244,239,0.05)" stroke-width="1.5" fill="none"/>
+      </svg>
+    </div>
+  </div>
+  <div class="eyebrow">GSAP Effects Demo v5</div>
   <h1 id="heroTitle">
-    <span class="word"><span>Responsive.</span></span>
-    <span class="word"><span>Themed.</span></span>
+    <span class="word"><span>Refined.</span></span>
+    <span class="word"><span>Complete.</span></span>
   </h1>
-  <p>Sections now alternate light and dark, the whole layout adapts down to phone width, and the green reveal box fires at a fixed pace instead of dragging with your scroll.</p>
+  <p>Fixed carousel, fixed load flash, plus a menu, a mouse-reactive background, a physics-style card pack, and a pinned chapter transition.</p>
   <div class="btn-row">
-    <a href="#masks" class="reveal-btn" data-cursor="View">
-      <span class="btn-text-wrap"><span class="btn-text">See Hover Mask</span><span class="btn-text btn-text-dup">See Hover Mask</span></span>
-    </a>
-    <a href="#pinSection" class="reveal-btn filled" data-cursor="Drag">
-      <span class="btn-text-wrap"><span class="btn-text">Try Pinned Scroll</span><span class="btn-text btn-text-dup">Try Pinned Scroll</span></span>
-    </a>
+    <a href="#masks" class="reveal-btn" data-cursor="View"><span class="split-letters">See Hover Mask</span></a>
+    <a href="#pinSection" class="reveal-btn filled" data-cursor="Drag"><span class="split-letters">Try Pinned Scroll</span></a>
   </div>
 </section>
 
 <section class="partners-section theme-light">
   <div class="partners-label">Partners &amp; Campaigns</div>
   <div class="partners-track-wrap">
-    <div class="partners-track">
-      <span class="partner-chip">RALPH LAUREN</span>
-      <span class="partner-chip">GOOGLE</span>
-      <span class="partner-chip">HILTON</span>
-      <span class="partner-chip">MONSTER</span>
-      <span class="partner-chip">TUMI</span>
-      <span class="partner-chip">UBER</span>
-      <span class="partner-chip">QUADRANT</span>
-      <!-- duplicated once for a seamless loop -->
+    <div class="partners-track" id="partnersTrack">
       <span class="partner-chip">RALPH LAUREN</span>
       <span class="partner-chip">GOOGLE</span>
       <span class="partner-chip">HILTON</span>
@@ -278,13 +322,37 @@
   </div>
 </section>
 
-<section class="text-reveal-section">
+<section class="pack-section">
+  <h2 class="section-title"><span class="mask-wrap"><span class="mask-box"></span>Hover to Scatter</span></h2>
+  <p class="section-sub" style="margin-left:auto;margin-right:auto;">Hover any card — it lifts forward while the others spring away and resettle.</p>
+  <div class="card-pack" id="cardPack">
+    <div class="stack-card" data-cursor="View" data-bx="-160" data-by="10" data-br="-12" style="background:linear-gradient(160deg,#2a2a2a,#111);"></div>
+    <div class="stack-card" data-cursor="View" data-bx="-95" data-by="-20" data-br="-6" style="background:linear-gradient(160deg,#3a5216,#1c2b0f);"></div>
+    <div class="stack-card" data-cursor="View" data-bx="-30" data-by="15" data-br="2" style="background:linear-gradient(160deg,#232323,#151515);"></div>
+    <div class="stack-card" data-cursor="View" data-bx="35" data-by="-15" data-br="8" style="background:linear-gradient(160deg,#4c6a1c,#26330f);"></div>
+    <div class="stack-card" data-cursor="View" data-bx="100" data-by="20" data-br="-3" style="background:linear-gradient(160deg,#1a1a1a,#0a0a0a);"></div>
+    <div class="stack-card" data-cursor="View" data-bx="165" data-by="-8" data-br="12" style="background:linear-gradient(160deg,#c8ff3f,#8fae1f);"></div>
+  </div>
+</section>
+
+<section class="text-reveal-section theme-light">
   <div class="line-mask"><span class="line">Every element</span></div>
   <div class="line-mask"><span class="line">arrives on its own</span></div>
   <div class="line-mask"><span class="line accent">as you scroll down.</span></div>
 </section>
 
-<section class="quote-section theme-light">
+<section class="transition-wrap" id="transitionWrap">
+  <div class="transition-a" id="transA">
+    <h2>Chapter One</h2>
+    <p>This panel locks in place, then zooms out into a photo as the next chapter arrives.</p>
+  </div>
+  <div class="transition-b" id="transB">
+    <h2>Chapter Two</h2>
+    <p>This slides up and over it — a clean handoff instead of a hard cut between sections.</p>
+  </div>
+</section>
+
+<section class="quote-section">
   <span class="mask-wrap"><span class="mask-box"></span>It doesn't matter where you start.</span>
 </section>
 
@@ -305,13 +373,13 @@
     <div class="card" data-cursor="Info"><div class="stat">18</div><div class="label">Wins</div></div>
     <div class="card" data-cursor="Info"><div class="stat">42</div><div class="label">Podiums</div></div>
     <div class="card" data-cursor="Info"><div class="stat">7</div><div class="label">Seasons</div></div>
-    <div class="card" data-cursor="Info"><div class="stat">4</div><div class="label">Sections</div></div>
+    <div class="card" data-cursor="Info"><div class="stat">5</div><div class="label">New Fixes</div></div>
   </div>
 </section>
 
 <footer>
-  <span>GSAP Effects Demo v4</span>
-  <span>Responsive · Light/Dark Mix · Fixed-Pace Reveal</span>
+  <span>GSAP Effects Demo v5</span>
+  <span>Menu · Card Pack · Chapter Transition · Fixed Carousel</span>
 </footer>
 
 <script>
@@ -321,7 +389,23 @@
   if (reduceMotion) document.body.classList.add('reduce-motion');
   const hasFinePointer = window.matchMedia('(pointer: fine)').matches && !reduceMotion;
 
-  /* CUSTOM CURSOR — skipped entirely on touch devices or reduced-motion */
+  /* ---------------------------------------------
+     FOUC FIX: set the hero's hidden state IMMEDIATELY,
+     synchronously, before the preloader timeline even
+     starts. Previously this only happened inside
+     playHeroIntro() (called later, after preload), which
+     left a window where the hero could render in its
+     final/default state for a frame before being hidden.
+  --------------------------------------------- */
+  gsap.set("#heroTitle .word span", { yPercent: 110 });
+  gsap.set(".hero .eyebrow, .hero p, .btn-row", { opacity: 0, y: 20 });
+
+  function playHeroIntro() {
+    gsap.to("#heroTitle .word span", { yPercent: 0, duration: 0.9, ease: "power4.out", stagger: 0.12 });
+    gsap.to(".hero .eyebrow, .hero p, .btn-row", { opacity: 1, y: 0, duration: 0.8, delay: 0.35, stagger: 0.1 });
+  }
+
+  /* CUSTOM CURSOR */
   if (hasFinePointer) {
     const dot = document.getElementById('cursorDot');
     const ring = document.getElementById('cursorRing');
@@ -340,12 +424,20 @@
       el.addEventListener('mouseenter', () => { ring.classList.add('active'); label.textContent = el.dataset.cursor; });
       el.addEventListener('mouseleave', () => ring.classList.remove('active'));
     });
-  }
 
-  /* HERO ENTRANCE — fired after preloader completes */
-  function playHeroIntro() {
-    gsap.from("#heroTitle .word span", { yPercent: 110, duration: 0.9, ease: "power4.out", stagger: 0.12 });
-    gsap.from(".hero .eyebrow, .hero p, .btn-row", { opacity: 0, y: 20, duration: 0.8, delay: 0.35, stagger: 0.1 });
+    /* Vector background mouse parallax — separate element from the
+       auto-drift layer, so the two transforms never collide. */
+    const heroBg = document.getElementById('heroBg');
+    const heroEl = document.querySelector('.hero');
+    const xToBg = gsap.quickTo(heroBg, "x", { duration: 0.8, ease: "power2" });
+    const yToBg = gsap.quickTo(heroBg, "y", { duration: 0.8, ease: "power2" });
+    heroEl.addEventListener('mousemove', (e) => {
+      const rect = heroEl.getBoundingClientRect();
+      const relX = (e.clientX - rect.left) / rect.width - 0.5;
+      const relY = (e.clientY - rect.top) / rect.height - 0.5;
+      xToBg(relX * -30);
+      yToBg(relY * -20);
+    });
   }
 
   /* PRELOADER */
@@ -372,7 +464,126 @@
   const nav = document.getElementById('nav');
   window.addEventListener('scroll', () => nav.classList.toggle('scrolled', window.scrollY > 40));
 
-  /* IMAGE REVEAL ON SCROLL (unchanged — this one is meant to track scroll) */
+  /* ---------------------------------------------
+     MENU: clip-path wipe open (same wipe language used
+     everywhere else on the site), staggered link entrance,
+     body scroll lock while open.
+  --------------------------------------------- */
+  const menuToggle = document.getElementById('menuToggle');
+  const menuOverlay = document.getElementById('menuOverlay');
+  const menuLinksEls = document.querySelectorAll('.menu-link');
+  let menuOpen = false;
+  gsap.set(menuLinksEls, { opacity: 0, y: 24 });
+
+  menuToggle.addEventListener('click', () => {
+    menuOpen = !menuOpen;
+    menuToggle.classList.toggle('open', menuOpen);
+    menuOverlay.classList.toggle('open', menuOpen);
+    if (menuOpen) {
+      document.body.style.overflowY = 'hidden';
+      gsap.timeline()
+        .to(menuOverlay, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.6, ease: "power4.inOut" })
+        .to(menuLinksEls, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out", stagger: 0.08 }, "-=0.2");
+    } else {
+      document.body.style.overflowY = 'auto';
+      gsap.timeline()
+        .to(menuLinksEls, { opacity: 0, y: -16, duration: 0.3, ease: "power2.in", stagger: 0.04 })
+        .to(menuOverlay, { clipPath: 'inset(0% 0% 100% 0%)', duration: 0.5, ease: "power4.inOut" }, "-=0.1");
+    }
+  });
+
+  /* ---------------------------------------------
+     LETTER-BY-LETTER SPLIT + HOVER CASCADE
+     Applied to menu links and the two hero buttons —
+     these are the elements that reveal per-character
+     rather than as a whole word block.
+  --------------------------------------------- */
+  function splitIntoLetters(el) {
+    const text = el.textContent;
+    el.textContent = '';
+    el.classList.add('letters-host');
+    [...text].forEach(ch => {
+      const mask = document.createElement('span');
+      mask.className = 'letter-mask';
+      const inner = document.createElement('span');
+      inner.className = 'letter-inner';
+      inner.textContent = ch === ' ' ? '\u00A0' : ch;
+      const dup = document.createElement('span');
+      dup.className = 'letter-inner letter-dup';
+      dup.textContent = inner.textContent;
+      mask.appendChild(inner);
+      mask.appendChild(dup);
+      el.appendChild(mask);
+    });
+  }
+  document.querySelectorAll('.split-letters').forEach(el => {
+    splitIntoLetters(el);
+    const letters = el.querySelectorAll('.letter-inner');
+    const parentInteractive = el.closest('a, button') || el;
+    parentInteractive.addEventListener('mouseenter', () => {
+      gsap.to(letters, { yPercent: -100, duration: 0.45, ease: "power3.out", stagger: 0.02 });
+    });
+    parentInteractive.addEventListener('mouseleave', () => {
+      gsap.to(letters, { yPercent: 0, duration: 0.45, ease: "power3.out", stagger: 0.02 });
+    });
+  });
+
+  /* ---------------------------------------------
+     SPONSOR CAROUSEL — dynamic clone + ticker loop.
+     Clones the chip set until track width comfortably
+     exceeds 2x the viewport (fixes empty-space on wide
+     screens), then wraps position continuously so it
+     never runs out of content regardless of screen size.
+     Direction is tied to scroll direction, not hover.
+  --------------------------------------------- */
+  (function initPartnersCarousel() {
+    const track = document.getElementById('partnersTrack');
+    const originals = Array.from(track.children);
+    const gap = 16;
+
+    function setWidth() {
+      return originals.reduce((sum, el) => sum + el.getBoundingClientRect().width + gap, 0);
+    }
+    function ensureCoverage() {
+      let guard = 0;
+      while (track.scrollWidth < window.innerWidth * 2 + 400 && guard < 20) {
+        originals.forEach(el => track.appendChild(el.cloneNode(true)));
+        guard++;
+      }
+    }
+
+    ensureCoverage();
+    let baseSetWidth = setWidth();
+    let xPos = 0;
+    let direction = 1;
+    let lastScrollY = window.scrollY;
+    const speed = 40; // px per second
+
+    window.addEventListener('scroll', () => {
+      const currentY = window.scrollY;
+      if (currentY !== lastScrollY) {
+        direction = currentY > lastScrollY ? 1 : -1;
+        lastScrollY = currentY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('resize', () => {
+      ensureCoverage();
+      baseSetWidth = setWidth();
+    });
+
+    if (reduceMotion) {
+      track.style.transform = 'translateX(0)';
+    } else {
+      gsap.ticker.add((time, deltaTime) => {
+        xPos -= direction * speed * (deltaTime / 1000);
+        xPos = gsap.utils.wrap(-baseSetWidth, 0, xPos);
+        track.style.transform = `translateX(${xPos}px)`;
+      });
+    }
+  })();
+
+  /* IMAGE REVEAL ON SCROLL */
   document.querySelectorAll('.reveal-clip').forEach(clip => {
     const img = clip.querySelector('.reveal-img');
     gsap.set(clip, { clipPath: 'inset(0% 0% 100% 0%)' });
@@ -380,6 +591,48 @@
     gsap.timeline({ scrollTrigger: { trigger: clip, start: "top 88%", end: "top 45%", scrub: 1 } })
       .to(clip, { clipPath: 'inset(0% 0% 0% 0%)', ease: "none" }, 0)
       .to(img, { scale: 1, ease: "none" }, 0);
+  });
+
+  /* ---------------------------------------------
+     CARD PACK — hover-to-scatter. Simulated physics:
+     on hover, every OTHER card gets pushed away from the
+     hovered card's center, proportional to how close it
+     is, then eased back with an elastic settle. This is
+     a distance-based heuristic, not a real physics engine.
+  --------------------------------------------- */
+  const packCards = document.querySelectorAll('.stack-card');
+  packCards.forEach(card => {
+    gsap.set(card, { x: +card.dataset.bx, y: +card.dataset.by, rotation: +card.dataset.br });
+  });
+  packCards.forEach(card => {
+    card.addEventListener('mouseenter', () => {
+      gsap.to(card, { scale: 1.15, y: (+card.dataset.by) - 26, zIndex: 50, duration: 0.4, ease: "back.out(1.8)" });
+      const rect = card.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+      packCards.forEach(other => {
+        if (other === card) return;
+        const orect = other.getBoundingClientRect();
+        const ox = orect.left + orect.width / 2, oy = orect.top + orect.height / 2;
+        const dx = ox - cx, dy = oy - cy;
+        const dist = Math.hypot(dx, dy) || 1;
+        const force = Math.max(0, 170 - dist) * 0.85;
+        const nx = dx / dist, ny = dy / dist;
+        gsap.to(other, {
+          x: (+other.dataset.bx) + nx * force,
+          y: (+other.dataset.by) + ny * force,
+          rotation: (+other.dataset.br) + nx * 10,
+          duration: 0.7,
+          ease: "elastic.out(1, 0.5)"
+        });
+      });
+    });
+    card.addEventListener('mouseleave', () => {
+      gsap.to(card, { scale: 1, y: +card.dataset.by, zIndex: 1, duration: 0.5, ease: "power3.out" });
+      packCards.forEach(other => {
+        if (other === card) return;
+        gsap.to(other, { x: +other.dataset.bx, y: +other.dataset.by, rotation: +other.dataset.br, duration: 0.7, ease: "elastic.out(1, 0.6)" });
+      });
+    });
   });
 
   /* LINE-BY-LINE TEXT REVEAL */
@@ -390,15 +643,21 @@
   });
 
   /* ---------------------------------------------
-     DEFORM REVEAL BOX — now a FIXED-PACE auto-play,
-     not scroll-scrubbed. It triggers once when the
-     element crosses the line and always takes the
-     same ~0.75s regardless of scroll speed. Tune the
-     "duration" below to taste — I can't extract the
-     exact curve from the live site without its
-     compiled JS, so this is a close, tunable match
-     rather than a frame-perfect copy.
+     PINNED ZOOM TRANSITION — Chapter A shrinks and
+     rounds its corners (reads as "becoming a photo")
+     while Chapter B slides up over it. One shared
+     scrubbed timeline keeps both locked to each other.
   --------------------------------------------- */
+  if (!reduceMotion) {
+    gsap.set("#transB", { yPercent: 100 });
+    gsap.timeline({
+      scrollTrigger: { trigger: "#transitionWrap", start: "top top", end: "+=100%", scrub: 1, pin: true }
+    })
+      .to("#transA", { scale: 0.82, borderRadius: "24px", filter: "brightness(0.7)", ease: "none" }, 0)
+      .to("#transB", { yPercent: 0, ease: "none" }, 0);
+  }
+
+  /* DEFORM REVEAL BOX — fixed-pace auto-play */
   document.querySelectorAll('.mask-wrap').forEach(wrap => {
     const box = wrap.querySelector('.mask-box');
     if (reduceMotion) { gsap.set(box, { autoAlpha: 0 }); return; }
@@ -410,12 +669,12 @@
         "45%":  { xPercent: -35,  borderRadius: "0 45% 45% 0", skewX: "-6deg" },
         "100%": { xPercent: -100, borderRadius: "0px",         skewX: "0deg" }
       },
-      duration: 0.75,   // <- adjust this single number to match your reference more closely
+      duration: 0.75,
       ease: "power3.inOut"
     });
   });
 
-  /* PINNED HORIZONTAL SCROLL — skipped under reduced-motion (CSS stacks it instead) */
+  /* PINNED HORIZONTAL SCROLL */
   if (!reduceMotion) {
     const panelCount = document.querySelectorAll('.pin-panel').length;
     const moveAmount = ((panelCount - 1) / panelCount) * 100;
